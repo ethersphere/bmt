@@ -4,4 +4,4 @@ import (
 	"errors"
 )
 
-var ErrOverflow = errors.New("BlockSize exceeded")
+var ErrOverflow = errors.New("BMT hash capacity exceeded")
