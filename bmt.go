@@ -13,8 +13,8 @@ type BMTHash interface {
 	// SetSpan sets the length prefix of BMT hash.
 	SetSpan(int64) error
 
-	// Maximum number of BlockSize() units of data that this BMT hasher will process.
-	MaxSections() int
+	// Capacity returns the maximum amount of bytes that will be processed by the implementation
+	Capacity() int
 
 	// WriteSection writes to a specific section of the data to be hashed.
 	WriteSection(idx int, data []byte) error

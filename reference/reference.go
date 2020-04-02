@@ -1,28 +1,6 @@
-// Copyright 2017 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
-
-// Package bmt is a simple nonconcurrent reference implementation for hashsize segment based
-// Binary Merkle tree hash on arbitrary but fixed maximum chunksize
-//
-// This implementation does not take advantage of any paralellisms and uses
-// far more memory than necessary, but it is easy to see that it is correct.
-// It can be used for generating test cases for optimized implementations.
-// There is extra check on reference hasher correctness in bmt_test.go
-// * TestRefHasher
-// * testBMTHasherCorrectness function
+// Copyright 2020 The Swarm Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 package reference
 
 import (
@@ -37,9 +15,7 @@ type RefHasher struct {
 }
 
 // NewRefHasher returns a new RefHasher
-//func NewRefHasher(hasher func() hash.Hash, count int) *RefHasher {
 func NewRefHasher(h hash.Hash, count int) *RefHasher {
-	//h := hasher()
 	hashsize := h.Size()
 	c := 2
 	for ; c < count; c *= 2 {
@@ -52,7 +28,6 @@ func NewRefHasher(h hash.Hash, count int) *RefHasher {
 }
 
 // Hash returns the BMT hash of the byte slice
-// implements the SwarmHash interface
 func (rh *RefHasher) Hash(data []byte) []byte {
 	// if data is shorter than the base length (maxDataLength), we provide padding with zeros
 	d := make([]byte, rh.maxDataLength)
