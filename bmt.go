@@ -8,10 +8,10 @@ import (
 	"hash"
 )
 
-// BMT provides the necessary extension of the hash interface to add the length-prefix of the BMT hash
+// Hash provides the necessary extension of the hash interface to add the length-prefix of the BMT hash
 //
 // Any implementation should make it possible to generate a BMT hash using the hash.Hash interface only. However, the limitation will be that the Span of the BMT hash always must be limited to the amount of bytes actually written.
-type BMTHash interface {
+type Hash interface {
 	hash.Hash
 
 	// SetSpan sets the length prefix of BMT hash.
