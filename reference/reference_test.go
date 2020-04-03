@@ -31,8 +31,7 @@ func sha3hash(data ...[]byte) []byte {
 	return doSum(h, nil, data...)
 }
 
-// TestRefHasher tests that the RefHasher computes the expected BMT hash for
-// some small data lengths
+// TestRefHasher tests that the RefHasher computes the expected BMT hash for some small data lengths.
 func TestRefHasher(t *testing.T) {
 	// the test struct is used to specify the expected BMT hash for
 	// segment counts between from and to and lengths from 1 to datalength

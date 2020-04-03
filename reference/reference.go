@@ -8,14 +8,14 @@ import (
 	"hash"
 )
 
-// RefHasher is the non-optimized easy-to-read reference implementation of BMT
+// RefHasher is the non-optimized easy-to-read reference implementation of BMT.
 type RefHasher struct {
 	maxDataLength int       // c * hashSize, where c = 2 ^ ceil(log2(count)), where count = ceil(length / hashSize)
 	sectionLength int       // 2 * hashSize
 	hasher        hash.Hash // base hash func (Keccak256 SHA3)
 }
 
-// NewRefHasher returns a new RefHasher
+// NewRefHasher returns a new RefHasher.
 func NewRefHasher(h hash.Hash, count int) *RefHasher {
 	hashsize := h.Size()
 	c := 2
@@ -28,7 +28,7 @@ func NewRefHasher(h hash.Hash, count int) *RefHasher {
 	}
 }
 
-// Hash returns the BMT hash of the byte slice
+// Hash returns the BMT hash of the byte slice.
 func (rh *RefHasher) Hash(data []byte) []byte {
 	// if data is shorter than the base length (maxDataLength), we provide padding with zeros
 	d := make([]byte, rh.maxDataLength)
