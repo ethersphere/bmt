@@ -40,17 +40,17 @@ func (rh *RefHasher) Hash(data []byte) []byte {
 	return rh.hash(d, rh.maxDataLength)
 }
 
-// data has length maxDataLength = segmentSize * 2^k
 // hash calls itself recursively on both halves of the given slice
 // concatenates the results, and returns the hash of that
 // if the length of d is 2 * segmentSize then just returns the hash of that section
+// data has length maxDataLength = segmentSize * 2^k
 func (rh *RefHasher) hash(data []byte, length int) []byte {
 	var section []byte
 	if length == rh.sectionLength {
 		// section contains two data segments (d)
 		section = data
 	} else {
-		// section contains hashes of left and right BMT subtreea
+		// section contains hashes of left and right BMT subtree
 		// to be calculated by calling hash recursively on left and right half of d
 		length /= 2
 		section = append(rh.hash(data[:length], length), rh.hash(data[length:], length)...)

@@ -10,7 +10,8 @@ import (
 
 // Hash provides the necessary extension of the hash interface to add the length-prefix of the BMT hash.
 //
-// Any implementation should make it possible to generate a BMT hash using the hash.Hash interface only. However, the limitation will be that the Span of the BMT hash always must be limited to the amount of bytes actually written.
+// Any implementation should make it possible to generate a BMT hash using the hash.Hash interface only.
+// However, the limitation will be that the Span of the BMT hash always must be limited to the amount of bytes actually written.
 type Hash interface {
 	hash.Hash
 
