@@ -29,7 +29,7 @@ func NewRefHasher(h hash.Hash, count int) *RefHasher {
 }
 
 // Hash returns the BMT hash of the byte slice.
-func (rh *RefHasher) Hash(data []byte) []byte {
+func (rh *RefHasher) Hash(data []byte) ([]byte, error) {
 	// if data is shorter than the base length (maxDataLength), we provide padding with zeros
 	d := make([]byte, rh.maxDataLength)
 	length := len(data)
@@ -44,7 +44,7 @@ func (rh *RefHasher) Hash(data []byte) []byte {
 // concatenates the results, and returns the hash of that
 // if the length of d is 2 * segmentSize then just returns the hash of that section
 // data has length maxDataLength = segmentSize * 2^k
-func (rh *RefHasher) hash(data []byte, length int) []byte {
+func (rh *RefHasher) hash(data []byte, length int) ([]byte, error) {
 	var section []byte
 	if length == rh.sectionLength {
 		// section contains two data segments (d)
@@ -53,9 +53,20 @@ func (rh *RefHasher) hash(data []byte, length int) []byte {
 		// section contains hashes of left and right BMT subtree
 		// to be calculated by calling hash recursively on left and right half of d
 		length /= 2
-		section = append(rh.hash(data[:length], length), rh.hash(data[length:], length)...)
+		left, err := rh.hash(data[:length], length)
+		if err != nil {
+			return nil, err
+		}
+		right, err := rh.hash(data[length:], length)
+		if err != nil {
+			return nil, err
+		}
+		section = append(left, right...)
 	}
 	rh.hasher.Reset()
-	rh.hasher.Write(section)
-	return rh.hasher.Sum(nil)
+	_, err := rh.hasher.Write(section)
+	if err != nil {
+		return nil, err
+	}
+	return rh.hasher.Sum(nil), nil
 }

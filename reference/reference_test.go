@@ -17,18 +17,26 @@ import (
 )
 
 // calculates the hash of the data using hash.Hash
-func doSum(h hash.Hash, b []byte, data ...[]byte) []byte {
+func doSum(h hash.Hash, b []byte, data ...[]byte) ([]byte, error) {
 	h.Reset()
 	for _, v := range data {
-		h.Write(v)
+		var err error
+		_, err = h.Write(v)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return h.Sum(b)
+	return h.Sum(b), nil
 }
 
 // calculates the Keccak256 SHA3 hash of the data
-func sha3hash(data ...[]byte) []byte {
+func sha3hash(t *testing.T, data ...[]byte) []byte {
 	h := sha3.NewLegacyKeccak256()
-	return doSum(h, nil, data...)
+	r, err := doSum(h, nil, data...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r
 }
 
 // TestRefHasher tests that the RefHasher computes the expected BMT hash for some small data lengths.
@@ -52,7 +60,7 @@ func TestRefHasher(t *testing.T) {
 		expected: func(d []byte) []byte {
 			data := make([]byte, 64)
 			copy(data, d)
-			return sha3hash(data)
+			return sha3hash(t, data)
 		},
 	})
 
@@ -69,7 +77,7 @@ func TestRefHasher(t *testing.T) {
 		expected: func(d []byte) []byte {
 			data := make([]byte, 128)
 			copy(data, d)
-			return sha3hash(sha3hash(data[:64]), sha3hash(data[64:]))
+			return sha3hash(t, sha3hash(t, data[:64]), sha3hash(t, data[64:]))
 		},
 	})
 
@@ -92,7 +100,7 @@ func TestRefHasher(t *testing.T) {
 		expected: func(d []byte) []byte {
 			data := make([]byte, 256)
 			copy(data, d)
-			return sha3hash(sha3hash(sha3hash(data[:64]), sha3hash(data[64:128])), sha3hash(sha3hash(data[128:192]), sha3hash(data[192:])))
+			return sha3hash(t, sha3hash(t, sha3hash(t, data[:64]), sha3hash(t, data[64:128])), sha3hash(t, sha3hash(t, data[128:192]), sha3hash(t, data[192:])))
 		},
 	})
 
@@ -107,7 +115,10 @@ func TestRefHasher(t *testing.T) {
 						t.Fatal(err)
 					}
 					expected := x.expected(data)
-					actual := reference.NewRefHasher(sha3.NewLegacyKeccak256(), segCount).Hash(data)
+					actual, err := reference.NewRefHasher(sha3.NewLegacyKeccak256(), segCount).Hash(data)
+					if err != nil {
+						t.Fatal(err)
+					}
 					if !bytes.Equal(actual, expected) {
 						t.Fatalf("expected %x, got %x", expected, actual)
 					}
