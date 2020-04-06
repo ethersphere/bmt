@@ -62,7 +62,10 @@ func TestHasherEmptyData(t *testing.T) {
 			defer pool.Drain(0)
 			bmt := New(pool)
 			rbmt := reference.NewRefHasher(hasher(), count)
-			expHash := rbmt.Hash(data)
+			expHash, err := rbmt.Hash(data)
+			if err != nil {
+				t.Fatal(err)
+			}
 			resHash, err := syncHash(bmt, 0, data)
 			if err != nil {
 				t.Fatal(err)
@@ -192,7 +195,10 @@ func TestBMTWriterBuffers(t *testing.T) {
 				t.Fatal(err)
 			}
 			rbmt := reference.NewRefHasher(hasher(), count)
-			refNoMetaHash := rbmt.Hash(data)
+			refNoMetaHash, err := rbmt.Hash(data)
+			if err != nil {
+				t.Fatal(err)
+			}
 			h := hasher()
 			_, err = h.Write(ZeroSpan)
 			if err != nil {
@@ -274,7 +280,11 @@ func testHasherCorrectness(bmt *Hasher, hasher BaseHasherFunc, d []byte, n, coun
 	if n == 0 {
 		exp = bmt.pool.zerohashes[bmt.pool.Depth]
 	} else {
-		exp = sha3hash(span, rbmt.Hash(data))
+		r, err := rbmt.Hash(data)
+		if err != nil {
+			return err
+		}
+		exp = sha3hash(span, r)
 	}
 	got, err := syncHash(bmt, n, data)
 	if err != nil {
@@ -461,7 +471,10 @@ func TestUseSyncAsOrdinaryHasher(t *testing.T) {
 	}
 	res := bmt.Sum(nil)
 	refh := reference.NewRefHasher(hasher(), 128)
-	resh := refh.Hash([]byte("foo"))
+	resh, err := refh.Hash([]byte("foo"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	hsub := hasher()
 	span := LengthToSpan(3)
 	hsub.Write(span)
