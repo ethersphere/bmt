@@ -63,7 +63,10 @@ func TestHasherEmptyData(t *testing.T) {
 			bmt := New(pool)
 			rbmt := reference.NewRefHasher(hasher(), count)
 			expHash := rbmt.Hash(data)
-			resHash := syncHash(bmt, 0, data)
+			resHash, err := syncHash(bmt, 0, data)
+			if err != nil {
+				t.Fatal(err)
+			}
 			if !bytes.Equal(expHash, resHash) {
 				t.Fatalf("hash mismatch with reference. expected %x, got %x", resHash, expHash)
 			}
@@ -191,10 +194,19 @@ func TestBMTWriterBuffers(t *testing.T) {
 			rbmt := reference.NewRefHasher(hasher(), count)
 			refNoMetaHash := rbmt.Hash(data)
 			h := hasher()
-			h.Write(ZeroSpan)
-			h.Write(refNoMetaHash)
+			_, err = h.Write(ZeroSpan)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = h.Write(refNoMetaHash)
+			if err != nil {
+				t.Fatal(err)
+			}
 			refHash := h.Sum(nil)
-			expHash := syncHash(bmt, 0, data)
+			expHash, err := syncHash(bmt, 0, data)
+			if err != nil {
+				t.Fatal(err)
+			}
 			if !bytes.Equal(expHash, refHash) {
 				t.Fatalf("hash mismatch with reference. expected %x, got %x", refHash, expHash)
 			}
@@ -213,7 +225,10 @@ func TestBMTWriterBuffers(t *testing.T) {
 						return fmt.Errorf("incorrect read. expected %v bytes, got %v", buflen, read)
 					}
 				}
-				bmt.SetSpan(0)
+				err := bmt.SetSpan(0)
+				if err != nil {
+					t.Fatal(err)
+				}
 				hash := bmt.Sum(nil)
 				if !bytes.Equal(hash, expHash) {
 					return fmt.Errorf("hash mismatch. expected %x, got %x", hash, expHash)
@@ -261,7 +276,10 @@ func testHasherCorrectness(bmt *Hasher, hasher BaseHasherFunc, d []byte, n, coun
 	} else {
 		exp = sha3hash(span, rbmt.Hash(data))
 	}
-	got := syncHash(bmt, n, data)
+	got, err := syncHash(bmt, n, data)
+	if err != nil {
+		return err
+	}
 	if !bytes.Equal(got, exp) {
 		return fmt.Errorf("wrong hash: expected %x, got %x", exp, got)
 	}
@@ -366,7 +384,10 @@ func benchmarkBMT(t *testing.B, n int) {
 	t.ReportAllocs()
 	t.ResetTimer()
 	for i := 0; i < t.N; i++ {
-		r = syncHash(bmt, 0, data)
+		r, err = syncHash(bmt, 0, data)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	BenchmarkBMTResult = r
 }
@@ -418,11 +439,14 @@ func benchmarkRefHasher(t *testing.B, n int) {
 }
 
 // Hash hashes the data and the span using the bmt hasher
-func syncHash(h *Hasher, spanLength int, data []byte) []byte {
+func syncHash(h *Hasher, spanLength int, data []byte) ([]byte, error) {
 	h.Reset()
-	h.SetSpan(int64(spanLength))
+	err := h.SetSpan(int64(spanLength))
+	if err != nil {
+		return nil, err
+	}
 	h.Write(data)
-	return h.Sum(nil)
+	return h.Sum(nil), nil
 }
 
 // TestUseSyncAsOrdinaryHasher verifies that the bmt.Hasher can be used with the hash.Hash interface
@@ -431,7 +455,10 @@ func TestUseSyncAsOrdinaryHasher(t *testing.T) {
 	pool := NewTreePool(hasher, SegmentCount, PoolSize)
 	bmt := New(pool)
 	bmt.SetSpan(3)
-	bmt.Write([]byte("foo"))
+	_, err := bmt.Write([]byte("foo"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	res := bmt.Sum(nil)
 	refh := reference.NewRefHasher(hasher(), 128)
 	resh := refh.Hash([]byte("foo"))

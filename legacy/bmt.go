@@ -18,7 +18,6 @@
 package bmt
 
 import (
-	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -82,13 +81,11 @@ type BaseHasherFunc func() hash.Hash
 //   the tree and itself in a state reusable for hashing a new chunk
 // - generates and verifies segment inclusion proofs (TODO:)
 type Hasher struct {
-	mtx     sync.Mutex // protects Hasher.size increments (temporary solution)
-	pool    *TreePool  // BMT resource pool
-	bmt     *tree      // prebuilt BMT resource for flowcontrol and proofs
-	size    int        // bytes written to Hasher since last Reset()
-	cursor  int        // cursor to write to on next Write() call
-	errFunc func(error)
-	ctx     context.Context
+	mtx    sync.Mutex // protects Hasher.size increments (temporary solution)
+	pool   *TreePool  // BMT resource pool
+	bmt    *tree      // prebuilt BMT resource for flowcontrol and proofs
+	size   int        // bytes written to Hasher since last Reset()
+	cursor int        // cursor to write to on next Write() call
 }
 
 // New creates a reusable BMT Hasher that
@@ -208,7 +205,7 @@ func newNode(index int, parent *node, hasher hash.Hash) *node {
 }
 
 // Draw draws the BMT (badly)
-func (t *tree) draw(hash []byte) string {
+func (t *tree) Draw(hash []byte) string {
 	var left, right []string
 	var anc []*node
 	for i, n := range t.leaves {
@@ -351,11 +348,19 @@ func (h *Hasher) Sum(b []byte) (s []byte) {
 // Write calls sequentially add to the buffer to be hashed,
 // with every full segment calls writeSection in a go routine
 //
+// BUG: This legacy implementation has no error handling for the writer. Use with caution
+//
 // Implements hash.Hash
 func (h *Hasher) Write(b []byte) (int, error) {
+	c := h.write(b)
+	return c, nil
+}
+
+// write exposes writing to the hasher to internal methods
+func (h *Hasher) write(b []byte) int {
 	l := len(b)
 	if l == 0 || l > h.pool.Size {
-		return 0, nil
+		return 0
 	}
 	h.mtx.Lock()
 	h.size += len(b)
@@ -375,12 +380,12 @@ func (h *Hasher) Write(b []byte) (int, error) {
 		}
 		if l <= smax {
 			t.offset += l
-			return l, nil
+			return l
 		}
 	} else {
 		// if end of a section
 		if t.cursor == h.pool.SegmentCount*2 {
-			return 0, nil
+			return 0
 		}
 	}
 	// read full sections and the last possibly partial section from the input buffer
@@ -397,7 +402,7 @@ func (h *Hasher) Write(b []byte) (int, error) {
 		smax += secsize
 	}
 	t.offset = l - smax + secsize
-	return l, nil
+	return l
 }
 
 // Reset implements hash.Hash
@@ -459,10 +464,12 @@ func (n *node) toggle() bool {
 }
 
 // calculates the hash of the data using hash.Hash
+//
+// BUG: This legacy implementation has no error handling for the writer. Use with caution
 func doSum(h hash.Hash, b []byte, data ...[]byte) []byte {
 	h.Reset()
 	for _, v := range data {
-		h.Write(v)
+		_, _ = h.Write(v)
 	}
 	return h.Sum(b)
 }
