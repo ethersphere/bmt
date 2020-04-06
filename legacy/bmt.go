@@ -20,6 +20,7 @@ package bmt
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"hash"
 	"strings"
@@ -287,30 +288,30 @@ func newTree(segmentSize, depth int, hashfunc func() hash.Hash) *tree {
 	}
 }
 
-// SectionSize implements file.SectionWriter
-func (h *Hasher) SectionSize() int {
-	return h.pool.SegmentSize
+// Count returns the maximum amount of bytes that will be processed by this hasher implementation
+//
+// Implements bmt.Hash
+func (h *Hasher) Capacity() int {
+	return h.pool.Size
 }
 
-// SetSpan implements file.SectionWriter
-func (h *Hasher) SetSpan(length int) {
+// writeSection is not in use for this implementation
+//
+// Implements bmt.Hash
+func (h *Hasher) WriteSection(idx int, data []byte) error {
+	return errors.New("This hasher only implements sequential writes. Please use Write() instead")
+}
+
+// SetSpan sets the span length value prefix for the current hash operation
+//
+// Implements bmt.Hash
+func (h *Hasher) SetSpan(length int64) error {
 	span := LengthToSpan(length)
 	h.getTree().span = span
+	return nil
 }
 
-// SetSpanBytes implements storage.SwarmHash
-func (h *Hasher) SetSpanBytes(b []byte) {
-	t := h.getTree()
-	t.span = make([]byte, 8)
-	copy(t.span, b)
-}
-
-// Branches implements file.SectionWriter
-func (h *Hasher) Branches() int {
-	return h.pool.SegmentCount
-}
-
-// Size implements hash.Hash and file.SectionWriter
+// Size implements hash.Hash
 func (h *Hasher) Size() int {
 	return h.pool.SegmentSize
 }
@@ -322,7 +323,8 @@ func (h *Hasher) BlockSize() int {
 
 // Sum returns the BMT root hash of the buffer
 // using Sum presupposes sequential synchronous writes (io.Writer interface)
-// Implements hash.Hash in file.SectionWriter
+//
+// Implements hash.Hash
 func (h *Hasher) Sum(b []byte) (s []byte) {
 	t := h.getTree()
 	h.mtx.Lock()
@@ -334,11 +336,11 @@ func (h *Hasher) Sum(b []byte) (s []byte) {
 	}
 	h.mtx.Unlock()
 	// write the last section with final flag set to true
-	go h.WriteSection(t.cursor, t.section, true, true)
+	go h.writeSection(t.cursor, t.section, true, true)
 	// wait for the result
 	s = <-t.result
 	if t.span == nil {
-		t.span = LengthToSpan(h.size)
+		t.span = LengthToSpan(int64(h.size))
 	}
 	span := t.span
 	// release the tree resource back to the pool
@@ -347,8 +349,9 @@ func (h *Hasher) Sum(b []byte) (s []byte) {
 }
 
 // Write calls sequentially add to the buffer to be hashed,
-// with every full segment calls WriteSection in a go routine
-// Implements hash.Hash and file.SectionWriter
+// with every full segment calls writeSection in a go routine
+//
+// Implements hash.Hash
 func (h *Hasher) Write(b []byte) (int, error) {
 	l := len(b)
 	if l == 0 || l > h.pool.Size {
@@ -383,7 +386,7 @@ func (h *Hasher) Write(b []byte) (int, error) {
 	// read full sections and the last possibly partial section from the input buffer
 	for smax < l {
 		// section complete; push to tree asynchronously
-		go h.WriteSection(t.cursor, t.section, true, false)
+		go h.writeSection(t.cursor, t.section, true, false)
 		// reset section
 		t.section = make([]byte, secsize)
 		// copy from input buffer at smax to right half of section
@@ -397,11 +400,24 @@ func (h *Hasher) Write(b []byte) (int, error) {
 	return l, nil
 }
 
-// Reset implements hash.Hash and file.SectionWriter
+// Reset implements hash.Hash
 func (h *Hasher) Reset() {
 	h.cursor = 0
 	h.size = 0
 	h.releaseTree()
+}
+
+// LengthToSpan creates a binary data span size representation
+// It is required for calculating the BMT hash
+func LengthToSpan(length int64) []byte {
+	spanBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(spanBytes, uint64(length))
+	return spanBytes
+}
+
+// GetZeroHash returns the zero hash of the full depth of the Hasher instance
+func (h *Hasher) GetZeroHash() []byte {
+	return h.pool.zerohashes[h.pool.Depth]
 }
 
 // releaseTree gives back the Tree to the pool whereby it unlocks
@@ -425,14 +441,48 @@ func (h *Hasher) releaseTree() {
 	}()
 }
 
-// Writesection writes data to the data level in the section at index i.
-// Setting final to true tells the hasher no further data will be written and prepares the data for h.Sum()
-// TODO remove double as argument, push responsibility for handling data context to caller
-func (h *Hasher) WriteSection(i int, section []byte, double bool, final bool) {
-	h.mtx.Lock()
-	h.size += len(section)
-	h.mtx.Unlock()
-	h.writeSection(i, section, double, final)
+// getTree obtains a BMT resource by reserving one from the pool and assigns it to the bmt field
+func (h *Hasher) getTree() *tree {
+	if h.bmt != nil {
+		return h.bmt
+	}
+	t := h.pool.reserve()
+	h.bmt = t
+	return t
+}
+
+// atomic bool toggle implementing a concurrent reusable 2-state object
+// atomic addint with %2 implements atomic bool toggle
+// it returns true if the toggler just put it in the active/waiting state
+func (n *node) toggle() bool {
+	return atomic.AddInt32(&n.state, 1)%2 == 1
+}
+
+// calculates the hash of the data using hash.Hash
+func doSum(h hash.Hash, b []byte, data ...[]byte) []byte {
+	h.Reset()
+	for _, v := range data {
+		h.Write(v)
+	}
+	return h.Sum(b)
+}
+
+// hashstr is a pretty printer for bytes used in tree.draw
+func hashstr(b []byte) string {
+	end := len(b)
+	if end > 4 {
+		end = 4
+	}
+	return fmt.Sprintf("%x", b[:end])
+}
+
+// calculateDepthFor calculates the depth (number of levels) in the BMT tree
+func calculateDepthFor(n int) (d int) {
+	c := 2
+	for ; c < n; c *= 2 {
+		d++
+	}
+	return d + 1
 }
 
 // writeSection writes the hash of i-th section into level 1 node of the BMT tree
@@ -555,120 +605,4 @@ func (h *Hasher) writeFinalNode(level int, n *node, bh hash.Hash, isLeft bool, s
 		n = n.parent
 		level++
 	}
-}
-
-// getTree obtains a BMT resource by reserving one from the pool and assigns it to the bmt field
-func (h *Hasher) getTree() *tree {
-	if h.bmt != nil {
-		return h.bmt
-	}
-	t := h.pool.reserve()
-	h.bmt = t
-	return t
-}
-
-// atomic bool toggle implementing a concurrent reusable 2-state object
-// atomic addint with %2 implements atomic bool toggle
-// it returns true if the toggler just put it in the active/waiting state
-func (n *node) toggle() bool {
-	return atomic.AddInt32(&n.state, 1)%2 == 1
-}
-
-// calculates the hash of the data using hash.Hash
-func doSum(h hash.Hash, b []byte, data ...[]byte) []byte {
-	h.Reset()
-	for _, v := range data {
-		h.Write(v)
-	}
-	return h.Sum(b)
-}
-
-// hashstr is a pretty printer for bytes used in tree.draw
-func hashstr(b []byte) string {
-	end := len(b)
-	if end > 4 {
-		end = 4
-	}
-	return fmt.Sprintf("%x", b[:end])
-}
-
-// calculateDepthFor calculates the depth (number of levels) in the BMT tree
-func calculateDepthFor(n int) (d int) {
-	c := 2
-	for ; c < n; c *= 2 {
-		d++
-	}
-	return d + 1
-}
-
-// LengthToSpan creates a binary data span size representation
-// It is required for calculating the BMT hash
-func LengthToSpan(length int) []byte {
-	spanBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(spanBytes, uint64(length))
-	return spanBytes
-}
-
-// ASYNCHASHER ACCESSORS
-// All methods below here are exported to enable access for AsyncHasher
-//
-
-// GetHasher returns a new instance of the underlying hasher
-func (h *Hasher) GetHasher() hash.Hash {
-	return h.pool.hasher()
-}
-
-// GetZeroHash returns the zero hash of the full depth of the Hasher instance
-func (h *Hasher) GetZeroHash() []byte {
-	return h.pool.zerohashes[h.pool.Depth]
-}
-
-// GetTree gets the underlying tree in use by the Hasher
-func (h *Hasher) GetTree() *tree {
-	return h.getTree()
-}
-
-// GetTree releases the underlying tree in use by the Hasher
-func (h *Hasher) ReleaseTree() {
-	h.releaseTree()
-}
-
-// GetCursor returns the current write cursor for the Hasher
-func (h *Hasher) GetCursor() int {
-	return h.cursor
-}
-
-// GetCursor assigns the value of the current write cursor for the Hasher
-func (h *Hasher) SetCursor(c int) {
-	h.cursor = c
-}
-
-// GetOffset returns the write offset within the current section of the Hasher
-func (t *tree) GetOffset() int {
-	return t.offset
-}
-
-// GetOffset assigns the value of the write offset within the current section of the Hasher
-func (t *tree) SetOffset(offset int) {
-	t.offset = offset
-}
-
-// GetSection returns the current section Hasher is operating on
-func (t *tree) GetSection() []byte {
-	return t.section
-}
-
-// SetSection assigns the current section Hasher is operating on
-func (t *tree) SetSection(b []byte) {
-	t.section = b
-}
-
-// GetResult returns the result channel of the Hasher
-func (t *tree) GetResult() <-chan []byte {
-	return t.result
-}
-
-// GetSpan returns the span set by SetSpan
-func (t *tree) GetSpan() []byte {
-	return t.span
 }

@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethersphere/bmt"
 	"github.com/ethersphere/bmt/reference"
 	"gitlab.com/nolash/go-mockbytes"
 	"golang.org/x/crypto/sha3"
@@ -419,7 +420,7 @@ func benchmarkRefHasher(t *testing.B, n int) {
 // Hash hashes the data and the span using the bmt hasher
 func syncHash(h *Hasher, spanLength int, data []byte) []byte {
 	h.Reset()
-	h.SetSpan(spanLength)
+	h.SetSpan(int64(spanLength))
 	h.Write(data)
 	return h.Sum(nil)
 }
@@ -442,4 +443,10 @@ func TestUseSyncAsOrdinaryHasher(t *testing.T) {
 	if !bytes.Equal(res, refRes) {
 		t.Fatalf("normalhash; expected %x, got %x", refRes, res)
 	}
+}
+
+func TestConformsToBMTInterface(t *testing.T) {
+	func() bmt.Hash {
+		return (New(nil))
+	}()
 }
