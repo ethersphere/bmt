@@ -149,12 +149,8 @@ func TestBMTConcurrentUse(t *testing.T) {
 	for i := 0; i < cycles; i++ {
 		go func() {
 			bmt := New(pool)
-
 			g := mockbytes.New(1, mockbytes.MockTypeStandard)
-			data, err := g.RandomBytes(BufferSize)
-			if err != nil {
-				t.Fatal(err)
-			}
+			data, _ := g.RandomBytes(BufferSize)
 			n := rand.Intn(bmt.Size())
 			errc <- testHasherCorrectness(bmt, hasher, data, n, 128)
 		}()
@@ -423,7 +419,7 @@ func benchmarkPool(t *testing.B, poolsize, n int) {
 			go func() {
 				defer wg.Done()
 				bmt := New(pool)
-				syncHash(bmt, 0, data)
+				_, _ = syncHash(bmt, 0, data)
 			}()
 		}
 		wg.Wait()
@@ -444,7 +440,10 @@ func benchmarkRefHasher(t *testing.B, n int) {
 	t.ReportAllocs()
 	t.ResetTimer()
 	for i := 0; i < t.N; i++ {
-		rbmt.Hash(data)
+		_, err := rbmt.Hash(data)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -455,7 +454,10 @@ func syncHash(h *Hasher, spanLength int, data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	h.Write(data)
+	_, err = h.Write(data)
+	if err != nil {
+		return nil, err
+	}
 	return h.Sum(nil), nil
 }
 
@@ -464,8 +466,11 @@ func TestUseSyncAsOrdinaryHasher(t *testing.T) {
 	hasher := sha3.NewLegacyKeccak256
 	pool := NewTreePool(hasher, SegmentCount, PoolSize)
 	bmt := New(pool)
-	bmt.SetSpan(3)
-	_, err := bmt.Write([]byte("foo"))
+	err := bmt.SetSpan(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = bmt.Write([]byte("foo"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -477,8 +482,15 @@ func TestUseSyncAsOrdinaryHasher(t *testing.T) {
 	}
 	hsub := hasher()
 	span := LengthToSpan(3)
-	hsub.Write(span)
-	hsub.Write(resh)
+	_, err = hsub.Write(span)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = hsub.Write(resh)
+	if err != nil {
+		t.Fatal(err)
+	}
 	refRes := hsub.Sum(nil)
 	if !bytes.Equal(res, refRes) {
 		t.Fatalf("normalhash; expected %x, got %x", refRes, res)

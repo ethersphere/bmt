@@ -215,7 +215,7 @@ func (t *tree) Draw(hash []byte) string {
 		}
 		right = append(right, fmt.Sprintf("%v", hashstr(n.right)))
 	}
-	anc = t.leaves
+	//anc = t.leaves
 	var hashes [][]string
 	for l := 0; len(anc) > 0; l++ {
 		var nodes []*node
