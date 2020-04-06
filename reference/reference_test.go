@@ -73,7 +73,7 @@ func TestRefHasher(t *testing.T) {
 		},
 	})
 
-	// all bmttestutil.SegmentCounts in [5,8] should be:
+	// all SegmentCounts in [5,8] should be:
 	//
 	//   sha3hash(
 	//     sha3hash(
