@@ -15,7 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package bmt provides a binary merkle tree implementation used for swarm chunk hash
-package bmt
+package legacy
 
 import (
 	"encoding/binary"
