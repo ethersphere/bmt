@@ -27,7 +27,7 @@ func main() {
 	if len(os.Args) > 1 {
 		infile, err = os.Open(os.Args[1])
 		if err != nil {
-			fmt.Fprintf(os.Stderr, err.Error())
+			fmt.Fprint(os.Stderr, err.Error())
 			os.Exit(1)
 		}
 	} else {
@@ -38,7 +38,7 @@ func main() {
 
 	// EOF means zero-length input. This is still valid input for BMT
 	if err != nil && err != io.EOF {
-		fmt.Fprintf(os.Stderr, err.Error())
+		fmt.Fprint(os.Stderr, err.Error())
 		infile.Close()
 		os.Exit(1)
 	}
@@ -51,13 +51,13 @@ func main() {
 	bmtHash := legacy.New(hashPool)
 	_, err = bmtHash.Write(data[:c])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, err.Error())
+		fmt.Fprint(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 	binSum := bmtHash.Sum(nil)
 	_, err = os.Stdout.Write(binSum)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, err.Error())
+		fmt.Fprint(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 }
