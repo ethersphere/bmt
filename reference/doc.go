@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package bmt is a simple nonconcurrent reference implementation for hashsize segment based
+// Package reference is a simple nonconcurrent reference implementation for hashsize segment based
 // Binary Merkle tree hash on arbitrary but fixed maximum chunksize n where 0 <= n <= 4096
 //
 // This implementation does not take advantage of any paralellisms and uses
