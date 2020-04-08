@@ -31,6 +31,7 @@ func doSum(h hash.Hash, b []byte, data ...[]byte) ([]byte, error) {
 
 // calculates the Keccak256 SHA3 hash of the data
 func sha3hash(t *testing.T, data ...[]byte) []byte {
+	t.Helper()
 	h := sha3.NewLegacyKeccak256()
 	r, err := doSum(h, nil, data...)
 	if err != nil {
