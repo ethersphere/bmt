@@ -24,7 +24,11 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/ethersphere/bmt"
 )
+
+var _ bmt.Hash = (*Hasher)(nil)
 
 const (
 	// PoolSize is the maximum number of bmt trees used by the hashers, i.e,
@@ -51,8 +55,6 @@ type BaseHasherFunc func() hash.Hash
 //
 // Sum gives back the tree to the pool and guaranteed to leave
 // the tree and itself in a state reusable for hashing a new chunk.
-//
-// Implements the hash.Hash interface.
 type Hasher struct {
 	mtx    sync.Mutex // protects Hasher.size increments (temporary solution)
 	pool   *TreePool  // BMT resource pool
@@ -260,42 +262,34 @@ func newTree(segmentSize, depth int, hashfunc func() hash.Hash) *tree {
 }
 
 // Count returns the maximum amount of bytes that will be processed by this hasher implementation.
-//
-// Implements bmt.Hash.
 func (h *Hasher) Capacity() int {
 	return h.pool.Size
 }
 
 // writeSection is not in use for this implementation.
-//
-// Implements bmt.Hash.
 func (h *Hasher) WriteSection(idx int, data []byte) error {
 	return errors.New("This hasher only implements sequential writes. Please use Write() instead")
 }
 
 // SetSpan sets the span length value prefix for the current hash operation.
-//
-// Implements bmt.Hash.
 func (h *Hasher) SetSpan(length int64) error {
 	span := LengthToSpan(length)
 	h.getTree().span = span
 	return nil
 }
 
-// Size implements hash.Hash.
+// Size returns the digest size of the hash
 func (h *Hasher) Size() int {
 	return h.pool.SegmentSize
 }
 
-// BlockSize implements hash.Hash and file.SectionWriter.
+// BlockSize returns the optimal write size to the Hasher
 func (h *Hasher) BlockSize() int {
 	return 2 * h.pool.SegmentSize
 }
 
 // Sum returns the BMT root hash of the buffer
 // using Sum presupposes sequential synchronous writes (io.Writer interface).
-//
-// Implements hash.Hash.
 func (h *Hasher) Sum(b []byte) (s []byte) {
 	t := h.getTree()
 	h.mtx.Lock()
@@ -323,8 +317,6 @@ func (h *Hasher) Sum(b []byte) (s []byte) {
 // with every full segment calls writeSection in a go routine.
 //
 // NOTE: This legacy implementation has no error handling for the writer. Use with caution.
-//
-// Implements hash.Hash.
 func (h *Hasher) Write(b []byte) (int, error) {
 	c := h.write(b)
 	return c, nil
@@ -379,7 +371,7 @@ func (h *Hasher) write(b []byte) int {
 	return l
 }
 
-// Reset implements hash.Hash.
+// Reset prepares the Hasher for reuse
 func (h *Hasher) Reset() {
 	h.cursor = 0
 	h.size = 0
