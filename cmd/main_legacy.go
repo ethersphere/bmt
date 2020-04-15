@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Command hash executes the BMT hash algorithm on the given data and writes the binary result to standard output
+// Command main_legacy executes the BMT hash algorithm on the given data and writes the binary result to standard output
 //
 // Up to 4096 bytes will be read
 //
