@@ -16,15 +16,19 @@ import (
 
 func main() {
 
-	// clean up any previous executions and create output directory
-	err := os.RemoveAll(".data")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, err.Error())
+	// create output directory, fail if it already exists or error creating
+	if len(os.Args) != 2 {
+		fmt.Fprintf(os.Stderr, "Usage: generate-hashes <output_directory>\n")
+		os.Exit(1)
 	}
-
-	os.Mkdir(".data", 0755)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, err.Error())
+	outputDir := os.Args[1]
+	err := os.Mkdir(outputDir, 0755)
+	if err == os.ErrExist {
+		fmt.Fprintf(os.Stderr, "Directory %s already exists\n", outputDir)
+		os.Exit(1)
+	} else if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating output directory: %v\n", err)
+		os.Exit(1)
 	}
 
 	// create sequence generator and outputs
