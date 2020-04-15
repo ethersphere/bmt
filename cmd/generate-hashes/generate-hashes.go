@@ -40,11 +40,11 @@ func main() {
 		filename := fmt.Sprintf(".data/%d.bin", i)
 		b, err := g.SequentialBytes(i)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, err.Error())
+			fmt.Fprint(os.Stderr, err.Error())
 		}
 		err = ioutil.WriteFile(filename, b, 0644)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, err.Error())
+			fmt.Fprint(os.Stderr, err.Error())
 		}
 	}
 
