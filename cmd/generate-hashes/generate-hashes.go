@@ -46,6 +46,10 @@ func main() {
 		if err != nil {
 			fmt.Fprint(os.Stderr, err.Error())
 		}
+		err = ioutil.WriteFile(filename, b, 0644)
+		if err != nil {
+			fmt.Fprint(os.Stderr, err.Error())
+		}
 	}
 
 	// Be kind and give feedback to user
