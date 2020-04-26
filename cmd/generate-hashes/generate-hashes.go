@@ -7,11 +7,11 @@
 package main
 
 import (
-	"path/filepath"
 	"fmt"
 	"hash"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/ethersphere/bmt/legacy"
 	"gitlab.com/nolash/go-mockbytes"
@@ -27,7 +27,7 @@ func main() {
 	}
 	outputDir, err := filepath.Abs(os.Args[1])
 	if err != nil {
-		fmt.Fprint(os.Stderr, "Invalid input: %s", err)
+		fmt.Fprintf(os.Stderr, "Invalid input: %s", err)
 		os.Exit(1)
 	}
 	err = os.Mkdir(outputDir, 0755)
