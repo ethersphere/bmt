@@ -7,11 +7,15 @@
 package main
 
 import (
+	"path/filepath"
 	"fmt"
+	"hash"
 	"io/ioutil"
 	"os"
 
+	"github.com/ethersphere/bmt/legacy"
 	"gitlab.com/nolash/go-mockbytes"
+	"golang.org/x/crypto/sha3"
 )
 
 func main() {
@@ -21,8 +25,12 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Usage: generate-hashes <output_directory>\n")
 		os.Exit(1)
 	}
-	outputDir := os.Args[1]
-	err := os.Mkdir(outputDir, 0755)
+	outputDir, err := filepath.Abs(os.Args[1])
+	if err != nil {
+		fmt.Fprint(os.Stderr, "Invalid input: %s", err)
+		os.Exit(1)
+	}
+	err = os.Mkdir(outputDir, 0755)
 	if err == os.ErrExist {
 		fmt.Fprintf(os.Stderr, "Directory %s already exists\n", outputDir)
 		os.Exit(1)
@@ -31,20 +39,36 @@ func main() {
 		os.Exit(1)
 	}
 
+	// set up hasher
+	hashFunc := func() hash.Hash {
+		return sha3.NewLegacyKeccak256()
+	}
+	hashPool := legacy.NewTreePool(hashFunc, 128, legacy.PoolSize)
+	bmtHash := legacy.New(hashPool)
+
 	// create sequence generator and outputs
 	var i int
 	g := mockbytes.New(0, mockbytes.MockTypeStandard).WithModulus(255)
 	for i = 0; i < 4096; i++ {
 		s := fmt.Sprintf("processing %d...", i)
 		fmt.Fprintf(os.Stderr, "%-64s\r", s)
-		filename := fmt.Sprintf(".data/%d.bin", i)
+		filename := fmt.Sprintf("%s/%d.bin", outputDir, i)
 		b, err := g.SequentialBytes(i)
 		if err != nil {
 			fmt.Fprint(os.Stderr, err.Error())
+			os.Exit(1)
 		}
-		err = ioutil.WriteFile(filename, b, 0644)
+		bmtHash.Reset()
+		_, err = bmtHash.Write(b)
+		sum := bmtHash.Sum(nil)
 		if err != nil {
 			fmt.Fprint(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		err = ioutil.WriteFile(filename, sum, 0644)
+		if err != nil {
+			fmt.Fprint(os.Stderr, err.Error())
+			os.Exit(1)
 		}
 		err = ioutil.WriteFile(filename, b, 0644)
 		if err != nil {
@@ -53,5 +77,6 @@ func main() {
 	}
 
 	// Be kind and give feedback to user
-	fmt.Printf("%-64s\n", "Done. Data is in .data. Enjoy!")
+	dirString := fmt.Sprintf("Done. Data is in %s. Enjoy!", outputDir)
+	fmt.Printf("%-64s\n", dirString)
 }

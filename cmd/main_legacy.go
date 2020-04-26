@@ -47,7 +47,7 @@ func main() {
 	hashFunc := func() hash.Hash {
 		return sha3.NewLegacyKeccak256()
 	}
-	hashPool := legacy.NewTreePool(hashFunc, 32, legacy.PoolSize)
+	hashPool := legacy.NewTreePool(hashFunc, 128, legacy.PoolSize)
 	bmtHash := legacy.New(hashPool)
 	_, err = bmtHash.Write(data[:c])
 	if err != nil {
