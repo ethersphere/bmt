@@ -30,7 +30,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Invalid input: %s", err)
 		os.Exit(1)
 	}
-	err = os.Mkdir(outputDir, 0755)
+	err = os.Mkdir(outputDir, 0777)
 	if err == os.ErrExist {
 		fmt.Fprintf(os.Stderr, "Directory %s already exists\n", outputDir)
 		os.Exit(1)
@@ -65,12 +65,12 @@ func main() {
 			fmt.Fprint(os.Stderr, err.Error())
 			os.Exit(1)
 		}
-		err = ioutil.WriteFile(filename, sum, 0644)
+		err = ioutil.WriteFile(filename, sum, 0666)
 		if err != nil {
 			fmt.Fprint(os.Stderr, err.Error())
 			os.Exit(1)
 		}
-		err = ioutil.WriteFile(filename, b, 0644)
+		err = ioutil.WriteFile(filename, b, 0666)
 		if err != nil {
 			fmt.Fprint(os.Stderr, err.Error())
 		}
