@@ -271,9 +271,19 @@ func (h *Hasher) WriteSection(idx int, data []byte) error {
 	return errors.New("This hasher only implements sequential writes. Please use Write() instead")
 }
 
-// SetSpan sets the span length value prefix for the current hash operation.
+// SetSpan sets the span length value prefix in numeric form for the current hash operation.
 func (h *Hasher) SetSpan(length int64) error {
 	span := LengthToSpan(length)
+	h.getTree().span = span
+	return nil
+}
+
+// SetSpanBytes sets the span length value prefix in bytes for the current hash operation.
+func (h *Hasher) SetSpanBytes(b []byte) error {
+	if len(b) != bmt.SpanSize {
+		return errors.New("invalid span size")
+	}
+	span := b
 	h.getTree().span = span
 	return nil
 }

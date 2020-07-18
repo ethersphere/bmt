@@ -8,6 +8,10 @@ import (
 	"hash"
 )
 
+const (
+	SpanSize = 8
+)
+
 // Hash provides the necessary extension of the hash interface to add the length-prefix of the BMT hash.
 //
 // Any implementation should make it possible to generate a BMT hash using the hash.Hash interface only.
@@ -17,6 +21,9 @@ type Hash interface {
 
 	// SetSpan sets the length prefix of BMT hash.
 	SetSpan(int64) error
+
+	// SetSpanBytes sets the length prefix of BMT hash in byte form.
+	SetSpanBytes([]byte) error
 
 	// Capacity returns the maximum amount of bytes that will be processed by the implementation.
 	Capacity() int
