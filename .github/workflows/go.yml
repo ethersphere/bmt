@@ -8,7 +8,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        go: [1.14, 1.x]
+        go: [1.15, 1.x]
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
     - name: Setup Go
@@ -33,11 +33,11 @@ jobs:
           ${{ runner.OS }}-build-${{ env.cache-name }}-
           ${{ runner.OS }}-build-
           ${{ runner.OS }}-
-    - name: Setup GolangCI-Lint
-      run: go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
-      working-directory: ~
     - name: Lint
-      run: golangci-lint run
+      uses: golangci/golangci-lint-action@v2
+      with:
+        version: v1.30
+        working-directory: ~
     - name: Vet
       run: go vet ./...
     - name: Build
