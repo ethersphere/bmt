@@ -39,7 +39,7 @@ func New(minPool, branches int) Pooler {
 	return &pool{
 		p: sync.Pool{
 			New: func() interface{} {
-				return bmtlegacy.New(bmtlegacy.NewTreePool(hashFunc, branches, bmtlegacy.PoolSize))
+				return bmtlegacy.New(bmtlegacy.NewTreePool(hashFunc, branches, 1)) // one tree per hasher
 			},
 		},
 		minimum: minPool,
@@ -47,9 +47,9 @@ func New(minPool, branches int) Pooler {
 }
 
 // Get gets a bmt Hasher from the pool.
-// The hasher is Reset before being given to the caller
 func (h *pool) Get() *bmtlegacy.Hasher {
 	h.mtx.Lock()
+	defer h.mtx.Unlock()
 
 	v := h.p.Get().(*bmtlegacy.Hasher)
 	h.rented++
@@ -57,8 +57,6 @@ func (h *pool) Get() *bmtlegacy.Hasher {
 	if h.size > 0 {
 		h.size--
 	}
-	h.mtx.Unlock()
-	v.Reset()
 
 	return v
 }
@@ -66,17 +64,19 @@ func (h *pool) Get() *bmtlegacy.Hasher {
 // Put puts a Hasher back into the pool.
 // It discards the instance if the minimum number of instances
 // has been reached.
+// The hasher is reset before being put back into the pool.
 func (h *pool) Put(v *bmtlegacy.Hasher) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
 	h.rented--
 
+	// only put back if we're not exceeding the minimum capacity
 	if h.size+1 > h.minimum {
 		return
 	}
 
-	// only put back if we're not exceeding the minimum capacity
+	v.Reset()
 	h.p.Put(v)
 	h.size++
 }
