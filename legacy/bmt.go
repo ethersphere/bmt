@@ -57,15 +57,13 @@ type BaseHasherFunc func() hash.Hash
 // the tree and itself in a state reusable for hashing a new chunk.
 type Hasher struct {
 	mtx    sync.Mutex // protects Hasher.size increments (temporary solution)
-	pool   *TreePool  // BMT resource pool
 	bmt    *tree      // prebuilt BMT resource for flowcontrol and proofs
 	size   int        // bytes written to Hasher since last Reset()
 	cursor int        // cursor to write to on next Write() call
 }
 
-// New creates a reusable BMT Hasher that
-// pulls a new tree from a resource pool for hashing each chunk.
-func New(p *TreePool) *Hasher {
+// New creates a reusable BMT Hasher
+func New() *Hasher {
 	return &Hasher{
 		pool: p,
 	}

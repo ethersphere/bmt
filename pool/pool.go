@@ -36,10 +36,11 @@ type pool struct {
 
 // New returns a new HasherPool.
 func New(minPool, branches int) Pooler {
+
 	return &pool{
 		p: sync.Pool{
 			New: func() interface{} {
-				return bmtlegacy.New(bmtlegacy.NewTreePool(hashFunc, branches, bmtlegacy.PoolSize))
+				return bmtlegacy.New(bmtlegacy.NewTreePool(hashFunc, branches, 1))
 			},
 		},
 		minimum: minPool,
@@ -58,7 +59,6 @@ func (h *pool) Get() *bmtlegacy.Hasher {
 		h.size--
 	}
 	h.mtx.Unlock()
-	v.Reset()
 
 	return v
 }
@@ -77,7 +77,11 @@ func (h *pool) Put(v *bmtlegacy.Hasher) {
 	}
 
 	// only put back if we're not exceeding the minimum capacity
-	h.p.Put(v)
+	go func() {
+		v.Reset()
+		h.p.Put(v)
+	}()
+
 	h.size++
 }
 
